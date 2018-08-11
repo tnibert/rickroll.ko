@@ -4,10 +4,13 @@
  * @date    11 August 2018
  * @version 0.1
  * @brief  A loadable kernel module to output Never Gonna Give You Up by Rick Astley
-current issues:
-nothing displayed when reading from device
-open with cat
-read with dd if=/dev/ricky
+ * to use:
+ * make CC=/usr/bin/gcc
+ * insmod rickroll.ko
+ * cat /dev/ricky
+ * todo:
+ * add a delay between words
+ * output entire song
 */
 
 #include <linux/init.h>             // Macros used to mark up functions e.g., __init __exit
@@ -20,7 +23,7 @@ read with dd if=/dev/ricky
 #define CLASS_NAME "rickroll"
 
 MODULE_LICENSE("GPL");              ///< The license type -- this affects runtime behavior
-MODULE_AUTHOR("DrZ");      ///< The author -- visible when you use modinfo
+MODULE_AUTHOR("DrZ");               ///< The author -- visible when you use modinfo
 MODULE_DESCRIPTION("A kernel module to save the world.");  ///< The description -- see modinfo
 MODULE_VERSION("0.1");              ///< The version of the module
 
@@ -41,8 +44,7 @@ static struct file_operations fops =
     .release = dev_release,
 };
 
-static char *song = "Never gonna give you up";
-//static short songlen = 3;  // default, maybe - strlen(song);
+static char *song = "Never gonna give you up\nNever gonna let you down\nNever gonna run around and desert you\n";
 static int numberOpens = 0;
 
 /** @brief The LKM initialization function
@@ -105,17 +107,18 @@ static int dev_open(struct inode *inodep, struct file *filep) {
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset) {
-    int error_count = 0;
-    error_count = copy_to_user(buffer, song, strlen(song));
 
-    if(error_count == 0) {
-        printk(KERN_INFO "Ricky sang to the user\n");
-        return 0;
+    int bytes_read = 0;
+    int songlen = strlen(song);
+
+    while (songlen && *song) {
+        put_user(*(song++), buffer++);
+        songlen--;
+        bytes_read++;
     }
-    else {
-        printk(KERN_INFO "Ricky wasn't able to siiiing, failed to send %d characters\n", error_count);
-        return -EFAULT;
-    }
+
+    printk(KERN_INFO "Ricky sang to the user %d bytes\n", bytes_read);
+    return bytes_read;
 }
 
 static int dev_release(struct inode *inodep, struct file *filep) {
