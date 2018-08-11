@@ -4,6 +4,10 @@
  * @date    11 August 2018
  * @version 0.1
  * @brief  A loadable kernel module to output Never Gonna Give You Up by Rick Astley
+current issues:
+nothing displayed when reading from device
+open with cat
+read with dd if=/dev/ricky
 */
 
 #include <linux/init.h>             // Macros used to mark up functions e.g., __init __exit
@@ -38,6 +42,8 @@ static struct file_operations fops =
 };
 
 static char *song = "Never gonna give you up";
+//static short songlen = 3;  // default, maybe - strlen(song);
+static int numberOpens = 0;
 
 /** @brief The LKM initialization function
  *  The static keyword restricts the visibility of the function to within this C file. The __init
@@ -90,6 +96,31 @@ static void __exit ricky_exit(void){
     unregister_chrdev(majorNumber, DEVICE_NAME);        // unregister major number
 
     printk(KERN_INFO "Rick Astley exits stage left\n");
+}
+
+static int dev_open(struct inode *inodep, struct file *filep) {
+    numberOpens++;
+    printk(KERN_INFO "Rick roll device has been opened %d time(s)\n", numberOpens);
+    return 0;
+}
+
+static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset) {
+    int error_count = 0;
+    error_count = copy_to_user(buffer, song, strlen(song));
+
+    if(error_count == 0) {
+        printk(KERN_INFO "Ricky sang to the user\n");
+        return 0;
+    }
+    else {
+        printk(KERN_INFO "Ricky wasn't able to siiiing, failed to send %d characters\n", error_count);
+        return -EFAULT;
+    }
+}
+
+static int dev_release(struct inode *inodep, struct file *filep) {
+    printk(KERN_INFO "Rick roll device successfully closed\n");
+    return 0;
 }
 
 /** @brief A module must use the module_init() module_exit() macros from linux/init.h, which
